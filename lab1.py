@@ -10,8 +10,8 @@ def load_articles_from_csv(file_path):
 
 # Funkcija, skirta rasti labiausiai atitinkančius straipsnius pagal vartotojo įvestą frazę
 def find_most_similar_articles(query, vectorizer, tfidf_matrix, data_set, threshold=0.3):
-    query_tfidf = vectorizer.transform([query])  # Transformuojama vartotojo įvesta frazė į TF-IDF formatą
-    similarity_scores = cosine_similarity(query_tfidf, tfidf_matrix).flatten()  # Skaičiuojami panašumo balai tarp frazės ir straipsnių
+    query_tfidf = vectorizer.transform([query])  # Transformuojama vartotojo įvesta frazė į TF-IDF formatą, yra paverčiama į vektorių atspindintį jos svorį kiekviename dokumente.
+    similarity_scores = cosine_similarity(query_tfidf, tfidf_matrix).flatten()  # Skaičiuojami panašumo balai tarp frazės ir straipsnių naudojantis kosinio panašumo metrika
     similar_indices = similarity_scores.argsort()[::-1]  # Surikiuojami indeksai pagal panašumą mažėjimo tvarka
     similar_articles = data_set.iloc[similar_indices]  # Surandami panašiausių straipsnių duomenys pagal surikiuotus indeksus
     similar_articles = similar_articles[similarity_scores[similar_indices] > threshold]  # Pasirenkami tik tie straipsniai, kurių panašumas yra didesnis nei nurodytas slenkstis
@@ -22,26 +22,22 @@ def get_top_words_and_articles(vectorizer, tfidf_matrix, data_set):
     word_scores = tfidf_matrix.sum(axis=0).tolist()[0]
 
     # Susiejame žodžius su jų svoriais
-    words = vectorizer.get_feature_names_out()
-    word_score_dict = dict(zip(words, word_scores))
-
-    # Rikiuojame žodžius pagal svorius
-    sorted_word_scores = sorted(word_score_dict.items(), key=lambda x: x[1], reverse=True)
-
-    # Pasiimame 5 dažniausiai pasikartojančius žodžius
-    top_words = [word for word, _ in sorted_word_scores[:5]]
+    words = vectorizer.get_feature_names_out() # grąžina žodžius, kuriuos naudojosi mokymosi metu ir kurie buvo svarstomi transformuojant tekstus.
+    word_score_dict = dict(zip(words, word_scores)) # svorių sąrašas 
+    sorted_word_scores = sorted(word_score_dict.items(), key=lambda x: x[1], reverse=True) # Rikiuojame žodžius pagal svorius
+    top_words = [word for word, _ in sorted_word_scores[:5]] # Pasiimame 5 dažniausiai pasikartojančius žodžius
 
     # Sukuriame sąrašą straipsnių, kuriuose pasikartoja šie žodžiai
     articles_with_top_words = {word: [] for word in top_words}
     for index, row in data_set.iterrows():
         for word in top_words:
             if word in row['Text']:
-                articles_with_top_words[word].append(row)
+                articles_with_top_words[word].append(row)  # jei pasitaiko žodis tekste jį prideda
 
     # Sukuriame galutinį sąrašą straipsnių su pasikartojančiais žodžiais, atsižvelgdami į žodžių dažnumą
     top_articles = []
     for word, articles in articles_with_top_words.items():
-        articles_sorted_by_word_count = sorted(articles, key=lambda x: x['Text'].count(word), reverse=True)
+        articles_sorted_by_word_count = sorted(articles, key=lambda x: x['Text'].count(word), reverse=True) # rūšiuoja straipsnius nuo daugiausia straipsnyje pasikartojusių iki mažiausia
         top_articles.extend(articles_sorted_by_word_count[:5])
 
     return top_words, top_articles  # Grąžiname 5 pirmus straipsnius su dažniausiai pasikartojančiais žodžiais
